@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 const (
@@ -36,29 +37,29 @@ func ttyin() {
 	}
 }
 
-func print(f *os.File, s string, pagesize int) {
+func print(f *os.File, filename string, pagesize int) {
 	r := bufio.NewReaderSize(f, BUFSIZE)
 	w := bufio.NewWriter(os.Stdout)
 	nlines := 0
 	for {
-		line, isPrefix, e := r.ReadLine()
-		if e != nil {
-			if e == io.EOF {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				w.Flush()
 				return
 			}
-			fmt.Fprintf(os.Stderr, "%s: error reading %s: %s\n", progname, s, e)
+			fmt.Fprintf(os.Stderr, "%s: error reading %s: %s\n", progname, filename, err)
 			break
 		} else {
-			w.Write(line)
+			line = strings.TrimRight(line, "\r\n")
+			w.Write([]byte(line))
 			w.Flush()
-			if !isPrefix {
-				nlines += 1
-				if nlines >= pagesize {
-					ttyin()
-					nlines = 0
-				} else {
-					w.WriteRune('\n')
-				}
+			nlines += 1
+			if nlines >= pagesize {
+				ttyin()
+				nlines = 0
+			} else {
+				w.WriteRune('\n')
 			}
 		}
 	}
@@ -71,9 +72,9 @@ func main() {
 		print(os.Stdin, "stdin", *n)
 	}
 	for i := 0; i < flag.NArg(); i++ {
-		f, e := os.Open(flag.Arg(i))
-		if e != nil {
-			fmt.Fprintf(os.Stderr, "%s: couldn't open %s:  %s\n", progname, flag.Arg(i), e)
+		f, err := os.Open(flag.Arg(i))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: couldn't open %s:  %s\n", progname, flag.Arg(i), err)
 			os.Exit(1)
 		}
 		print(f, flag.Arg(i), *n)
