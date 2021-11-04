@@ -20,7 +20,7 @@ func tty(t *bufio.Reader) {
 	}
 }
 
-func print(f *os.File, filename string, pagesize int, t *bufio.Reader, progname string) {
+func print(f *os.File, pagesize int, t *bufio.Reader) error {
 	r := bufio.NewReaderSize(f, 1024)
 	w := bufio.NewWriter(os.Stdout)
 	nlines := 0
@@ -29,10 +29,9 @@ func print(f *os.File, filename string, pagesize int, t *bufio.Reader, progname 
 		if err != nil {
 			if err == io.EOF {
 				w.Flush()
-				return
+				return nil
 			}
-			log.Printf("%s: error reading %s: %s\n", progname, filename, err)
-			break
+			return err
 		} else {
 			line = strings.TrimRight(line, "\r\n")
 			w.Write([]byte(line))
@@ -49,32 +48,40 @@ func print(f *os.File, filename string, pagesize int, t *bufio.Reader, progname 
 	}
 }
 
+func exit(err error) {
+	fmt.Fprintf(os.Stderr, "%v", err)
+	os.Exit(1)
+}
+
 func main() {
 	flag.Parse()
-	progname := flag.Args()[0]
+	progname := "p"
 
 	n := flag.Int("n", 22, "number of lines to print")
 	flag.Parse()
 
 	s := "/dev/tty"
-	f, e := os.Open(s)
-	if e != nil {
-		fmt.Fprintf(os.Stderr, "%s: error opening '%s': %s\n", progname, s, e)
-		os.Exit(1)
+	f, err := os.Open(s)
+	if err != nil {
+		exit(fmt.Errorf("%s: %s\n", progname, err))
 	}
 	tty := bufio.NewReaderSize(f, 1024)
 
 	if flag.NArg() == 0 {
-		print(os.Stdin, "stdin", *n, tty, progname)
+		if err := print(os.Stdin, *n, tty); err != nil {
+			exit(fmt.Errorf("%s: stdin:, %s\n", progname, err))
+		}
+		os.Exit(0)
 	}
 
 	for i := 0; i < flag.NArg(); i++ {
 		f, err := os.Open(flag.Arg(i))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: couldn't open %s:  %s\n", progname, flag.Arg(i), err)
-			os.Exit(1)
+			exit(fmt.Errorf("%s: %s\n", progname, err))
 		}
-		print(f, flag.Arg(i), *n, tty, progname)
+		if err := print(f, *n, tty); err != nil {
+			exit(fmt.Errorf("%s: %s: %s\n", progname, flag.Arg(i), err))
+		}
 		f.Close()
 	}
 }
