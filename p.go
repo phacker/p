@@ -5,19 +5,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 )
 
-func tty(t *bufio.Reader) {
+func tty(t *bufio.Reader) error {
 	line, _, e := t.ReadLine()
 	if e != nil {
-		log.Fatal(e)
+		return e
 	}
 	if len(line) > 0 && line[0] == 'q' {
 		os.Exit(0)
 	}
+	return nil
 }
 
 func print(f *os.File, pagesize int, t *bufio.Reader) error {
@@ -39,7 +39,9 @@ func print(f *os.File, pagesize int, t *bufio.Reader) error {
 			nlines++
 
 			if nlines >= pagesize {
-				tty(t)
+				if err = tty(t); err != nil {
+					return err
+				}
 				nlines = 0
 			} else {
 				w.WriteRune('\n')
