@@ -54,8 +54,7 @@ func exit(err error) {
 }
 
 func main() {
-	flag.Parse()
-	progname := "p"
+	progname := os.Args[0]
 
 	n := flag.Int("n", 22, "number of lines to print")
 	flag.Parse()
